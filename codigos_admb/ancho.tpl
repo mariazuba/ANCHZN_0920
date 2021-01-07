@@ -6,6 +6,7 @@ GLOBALS_SECTION
  #include <time.h>
  #include <limits>
  #include <math.h>
+ #include <fvar.hpp>
  time_t start,finish;
  long hour,minute,second;
  double elapsed_time;
@@ -15,18 +16,20 @@ GLOBALS_SECTION
 
  double eps = std::numeric_limits<double>::epsilon();
 
+ long _stack = 2500000000;
+
 TOP_OF_MAIN_SECTION
  time(&start);
- arrmblsize = 50000000; 
- gradient_structure::set_GRADSTACK_BUFFER_SIZE(1.e5); 
- gradient_structure::set_CMPDIF_BUFFER_SIZE(1.e5); 
- gradient_structure::set_MAX_NVAR_OFFSET(5000); 
- gradient_structure::set_NUM_DEPENDENT_VARIABLES(5000); 
- 
+ arrmblsize = 50000000L; 
+ gradient_structure::set_NUM_RETURN_ARRAYS(15);
+ gradient_structure::set_GRADSTACK_BUFFER_SIZE(1.e8); 
+ gradient_structure::set_CMPDIF_BUFFER_SIZE(1.e8); 
+ gradient_structure::set_MAX_NVAR_OFFSET(50000); 
+ gradient_structure::set_NUM_DEPENDENT_VARIABLES(50000); 
+
  
 DATA_SECTION
  int iseed //genera_numero_aleatorio
- !!long int lseed=iseed;
  !!CLASS random_number_generator rng(iseed);
 
  init_int ntime
@@ -117,16 +120,13 @@ DATA_SECTION
  init_number gama
  init_number opt_Reclu
  init_number cvF
- init_int    npbr
- init_vector pbr(1,npbr)
+ init_number pbr
  init_int    ntime_sim
+ init_int    nrun
  init_int    sem_year
  init_int    sem1
  init_int    sem2
- init_int    opt_Str
- init_number RPRmsy
  init_number pR
- init_number multFO
 
  number neglog19
 
@@ -240,9 +240,6 @@ PARAMETER_SECTION
  vector Lmed_Chi_obs(1,ntime)
  vector Lmed_Per_obs(1,ntime)
  vector Lmed_Cru_obs(1,ntime)
- vector Fxx(1,nedades);
- vector Zxx(1,nedades);
-
 
  matrix cv_index(1,6,1,ntime)
  matrix nm(1,3,1,ntime)
@@ -277,6 +274,7 @@ PARAMETER_SECTION
  vector mu_edad1_time(1,ntime)
  vector delta_time(1,ntime)
  4darray MatricesConv(1,5,1,ntime,1,nedades,1,ntallas)
+ matrix ClavePro(1,nedades,1,ntallas)
  matrix Nv(1,ntime,1,nedades)
  matrix NMDv(1,ntime,1,nedades)
  matrix NPt(1,ntime,1,ntallas)
@@ -315,10 +313,7 @@ PARAMETER_SECTION
  number Lo
  number M
  number h
- number Npplus
  number RPRp
- number Fref
- number Y1sem1
  number phi
  number a
  number sl
@@ -333,28 +328,25 @@ PARAMETER_SECTION
  vector Np(1,nedades)
  vector Zpbr(1,nedades)
  vector Fpbr(1,nedades)
+ vector Spbr(1,nedades)
  vector Sp(1,nedades)
 
- 3darray CTP(1,npbr,1,ntime_sim,1,ntallas)
- 3darray NMDpy(1,npbr,1,ntime_sim,1,ntallas)
- matrix BDpy(1,npbr,1,ntime_sim)
- matrix RPRpy(1,npbr,1,ntime_sim)
- vector Bp_anch(1,ntime_sim)
- matrix YTP(1,npbr,1,ntime_sim)
- matrix SSBp(1,npbr,1,ntime_sim)
- matrix matFpbr(1,ntime_sim,1,npbr)
- vector Nvp(1,nedades)
- number Nvplus
- vector SDvp(1,ntime_sim)
- vector RMSsem1(1,npbr)
- vector CMR(1,ntallas)
- 3darray Npy(1,npbr,1,ntime_sim,1,nedades)   
+ 3darray Npy(1,nrun,1,ntime_sim,1,nedades) 
+ 3darray CTP(1,nrun,1,ntime_sim,1,ntallas)
+ 3darray NMDpy(1,nrun,1,ntime_sim,1,ntallas)
+ matrix BDpy(1,nrun,1,ntime_sim)
+ matrix RPRpy(1,nrun,1,ntime_sim)
+ matrix YTP(1,nrun,1,ntime_sim)
  vector runo(1,nuno)
  vector rdos(1,ndos)
-// matrix ctp1(1,ntime_sim,1,ntallas)
-// matrix ctp2(1,ntime_sim,1,ntallas)
-// matrix ctp3(1,ntime_sim,1,ntallas)
-
+ number mea1
+ number std1
+ number min1
+ number max1
+ number mea2
+ number std2
+ number min2
+ number max2
 
  objective_function_value f
 
@@ -363,7 +355,7 @@ PARAMETER_SECTION
  sdreport_vector RPR(1,ntime) // 
  sdreport_vector RPRlp(1,ntime) // 
  sdreport_vector Reclutas(1,ntime) // 
- sdreport_vector CBA(1,npbr) 
+// sdreport_number CBA 
 
  sdreport_number SSBo
  sdreport_number alfa
@@ -422,8 +414,6 @@ PRELIMINARY_CALCS_SECTION
  reporte_mcmc=1;
 
 RUNTIME_SECTION
-//  maximum_function_evaluations 200,500,500,2500,2500
-//  convergence_criteria  1.e-01,1.e-02,1.e-03,1e-4,1e-4
 
   convergence_criteria 1.e-01,1.e-02,1.e-03,1e-5,1e-6
   maximum_function_evaluations 100,100,200,3000,5000
@@ -443,9 +433,9 @@ PROCEDURE_SECTION
  Eval_logverosim();
  Eval_funcion_objetivo();
  Eval_mcmc();
+// Eval_CTP();
 
  if (last_phase()) {Eval_CTP();}
-
 
 
 FUNCTION Eval_prob_talla_edad_variable
@@ -826,7 +816,7 @@ FUNCTION Eval_funcion_objetivo
 // prior(6)=1./(2*square(cv_rango))*norm2(log_rangof_ch-logRango_prior);
 // prior(7)=1./(2*square(cv_rango))*norm2(log_rangof_pe-logRango_prior);
 
-  f=multFO*(sum(likeval)+sum(prior));
+  f=sum(likeval)+sum(prior);
 
  
  if(last_phase){
@@ -848,92 +838,69 @@ FUNCTION Eval_funcion_objetivo
    FT_anual(cont)=(Ftot_ref(j)+Ftot_ref(j+1))/2;
    cont=cont+1;
   }
+
  }
  F_fin=0.5*(Ftot_ref(ntime-1)+Ftot_ref(ntime));
 
 
+
 FUNCTION Eval_CTP
-
- for(int r=1;r<=nuno;r++){runo(r)=Reclutas(uno(r));}
- for(int s=1;s<=ndos;s++){rdos(s)=Reclutas(dos(s));}
-
- for (int j=1;j<=npbr;j++){//pbr_++ 
-  Np=N(ntime);
-  Sp=S(ntime);
-  BDp=BD(ntime);
-  Fpbr=Ftot(ntime);
-  Zpbr=Z(ntime);
-  Nvp=Nv(ntime);
-  RPRp=RPRlp(ntime);
-  Fxx=Ftot(ntime)/max(Ftot(ntime))*pbr(j);Zxx=Fxx+M;
-  CMR=elem_prod(elem_div(Fxx,Zxx),elem_prod(Np,(1-Sp)))*Prob_talla;
-  RMSsem1(j)=sum(elem_prod(CMR,Wmed(ntime)));
-  Y1sem1=Desemb_ch(ntime)+Desemb_pe(ntime);
-// cout << "BDini:" << BDp << endl;exit(1);
-   for (int i=1;i<=ntime_sim;i++){//semestre_++
-    if(i==1){
-     Npy(j,i)(2,nedades)=++elem_prod(Np(1,nedades-1),Sp(1,nedades-1));
-     Npy(j,i)(nedades)+=Np(nedades)*Sp(nedades);
-    } else {
-     Npy(j,i)(2,nedades)=++elem_prod(Npy(j,i-1)(1,nedades-1),Sp(1,nedades-1));
-     Npy(j,i)(nedades)+=Npy(j,i-1)(nedades)*Sp(nedades);
-    }
-    if(opt_Reclu==1){Np(1)=pR*alfa*BDp/(beta+BDp)*mfexp(0.5*square(sigmaRt));}
-    if(opt_Reclu==2){Np(1)=pR*BDp*mfexp(alfa-1.0*beta*BDp)*mfexp(0.5*square(sigmaRt));}
-    if(opt_Reclu==3){
-     if(i%2==0){Npy(j,i)(1)=pR*mu(rdos);}
-     if(i%2!=0){Npy(j,i)(1)=pR*mu(runo);}
-    }
-    Fref=pbr(j);
-    if(opt_Str==0){if(RPRp/RPRmsy<1){Fref=pbr(j)*RPRp/RPRmsy;}}//Regla
-    Fpbr=(Ftot(ntime)/max(Ftot(ntime)))*pbr(j);
-    matFpbr(i,j)=Fref;
-    Zpbr=Fpbr+M;
-    Sp=exp(-1.*Zpbr);
-    NMDpy(j,i)=elem_prod(Npy(j,i),mfexp(-dt(4)*Zpbr))*Prob_talla;
-    BDpy(j,i)=sum(elem_prod(elem_prod(NMDpy(j,i),msex),Wmed(ntime)));
-    CTP(j,i)=elem_prod(elem_div(Fpbr,Zpbr),elem_prod(Npy(j,i),(1-Sp)))*Prob_talla;
-// cout << "CTP" << CTP << endl;exit(1);
-    YTP(j,i)=sum(elem_prod(CTP(j,i),Wmed(ntime)));
-    SSBp(j,i)=BDpy(j,i);
-    RPRpy(j,i)=BDpy(j,i)/SSBo;
-   }
- }
-
- if(sem_year==2){for (int i=1;i<=npbr;i++){CBA(i)=YTP(i,sem1)+YTP(i,sem2);}}
- if(sem_year==1){for (int i=1;i<=npbr;i++){CBA(i)=YTP(i,sem2)+(RMSsem1(i)-Y1sem1);}}
-
-//---------------------------------------------------------------
-
-FUNCTION dvariable mu(dvar_vector& x)
-
- int nx=size_count(x);
- dvariable sum=0;
- for(int i=1;i<=nx;i++){sum+=x[i];}
- dvariable prom=sum/nx;
- return(prom);
-
-
-FUNCTION dvariable ds(dvar_vector& y)
-
- int ny=size_count(y);
- dvariable sam=0;
- for(int j=1;j<=ny;j++){sam+=y[j];}
- dvariable mea=sam/ny;
- dvariable des=0;
- for(int j=1;j<=ny;j++){des+=pow(y[j]-mea,2);}
- dvariable var=des/ny;
- dvariable dis=sqrt(var);
- return(dis);
-
-
-FUNCTION dvariable trun_rnorm(const double& ma, const double& std, const double& min, const double& max)
  
- dvariable trn=ma+randn(rng)*std;
- while(trn<min || trn>max){
-  dvariable trn=ma+randn(rng)*std;
+ for(int r=1;r<=nuno;r++){runo(r)=Reclutas(uno(r));}
+ mea1=mean(runo);std1=std_dev(runo);min1=min(runo);max1=max(runo);
+ for(int s=1;s<=ndos;s++){rdos(s)=Reclutas(dos(s));}
+ mea2=mean(rdos);std2=std_dev(rdos);min2=min(rdos);max2=max(rdos);
+// cout << "std1: " << std1 << endl;exit(1);
+ for(int i=1;i<=ntime_sim;i++){
+  for(int j=1;j<=ntallas,j++){
+
+  }
  }
- return(trn);
+
+
+ int j=1;
+ while(j<=nrun){
+   Np=N(ntime);
+   Sp=S(ntime);
+   for(int i=1;i<=ntime_sim;i++){//semestre_++
+     if(i==1){
+      Npy(j)(i)(2,nedades)=++elem_prod(Np(1,nedades-1),Sp(1,nedades-1));
+      Npy(j)(i)(nedades)+=Np(nedades)*Sp(nedades);
+     } else {
+      Npy(j)(i)(2,nedades)=++elem_prod(Npy(j)(i-1)(1,nedades-1),Sp(1,nedades-1));
+      Npy(j)(i)(nedades)+=Npy(j)(i-1)(nedades)*Sp(nedades);
+     }
+// cout << "NPy(1,1): " << Npy(1,1) << endl;exit(1);
+     if(i%2==0){
+      do_trun_rnorm(mea2,std2,min2,max2,j,i);
+     }
+     if(i%2!=0){
+      do_trun_rnorm(mea1,std1,min1,max1,j,i);
+     }
+     Fpbr=(Ftot(ntime)/max(Ftot(ntime)))*pbr;
+     Zpbr=Fpbr+M;
+     Sp=exp(-1.*Zpbr);
+     NMDpy(j)(i)(1,ntallas)=elem_prod(Npy(j)(i),mfexp(-dt(4)*Zpbr))*MatricesConv(1,ntime);//Prob_talla;
+     BDpy(j)(i)=sum(elem_prod(elem_prod(NMDpy(j)(i),msex),Wmed(ntime)));
+     CTP(j)(i)(1,ntallas)=elem_prod(elem_div(Fpbr,Zpbr),elem_prod(Npy(j)(i),(1-Spbr)))*MatricesConv(1,ntime);//*Prob_talla;
+     YTP(j)(i)=sum(elem_prod(CTP(j)(i),Wmed(ntime)));
+     RPRpy(j)(i)=BDpy(j)(i)/SSBo;
+   }
+ j=j+1;
+ }
+//
+// cout << "Npy: " << Npy(1) << endl;exit(1);
+//
+//---------------------------------------------------------------
+FUNCTION void do_trun_rnorm(dvariable ma, dvariable std, dvariable min, dvariable max, int j, int i)
+
+  dvariable trn;
+  trn=ma+randn(rng)*std;
+  while(trn<min || trn>max){
+   trn=ma+randn(rng)*std;
+  }
+  Npy(j)(i)(1)=pR*trn;
+//----------------------------------------------------------------
 
 
 REPORT_SECTION
@@ -1077,10 +1044,8 @@ REPORT_SECTION
  report << "No" << endl;
  report << No << endl;
  report << "log_like" << endl;
- // report << " L_Acus  L_Rch  L_Rpe  L_mdph   L_Ych   L_Ype   L_Pch   L_Ppe  L_Pcru   L_devR   L_devNo " << endl;
  report << likeval << endl;
  report << "log_prior" << endl;
- //report << " p_Linf   p_k   p_Lo   p_A50ch   p_A50pe  p_Dch   p_Dpe" << endl;
  report << prior << endl;
  report << "Prob_talla" << endl;
  report << Prob_talla << endl;
@@ -1090,6 +1055,8 @@ REPORT_SECTION
  report << MatricesConv(1,ntime) << endl;
  report << "ClavePE" << endl;
  report << MatricesConv(2,ntime) << endl;
+ report << "ClaveCr" << endl;
+ report << MatricesConv(3,ntime) << endl;
  report << "Mu_edad" << endl;
  report << mu_edad << endl;
  report << "Sigma_edad" << endl;
@@ -1112,39 +1079,18 @@ REPORT_SECTION
  report << Wmed << endl;
  report << "Madu_talla" << endl;
  report << msex << endl;
- report << "CTP_proy" << endl;
- report << CTP(2) << endl;
- report << "Capt_seme" << endl;
- report << YTP << endl;
- report << "Proy_bt_seme" << endl;
- report << Fpbr << endl;
- report << "Fpbr" << endl;
- report << Zpbr << endl;
- report << "Zpbr" << endl;
- report << Sp << endl;
- report << "Sp" << endl;
- report << Bp_anch << endl;
- report << "Proy_bd_seme" << endl;
- report << SSBp << endl;
- report << "Proy_bd_virg" << endl;
- report << SDvp << endl; 
- report << "Fproy" << endl;
- report << matFpbr << endl;
- report << "RPR_proy" << endl;
- report << RPRpy << endl;
  report << "Madu_edad" << endl;
  report << msex*trans(Prob_talla) << endl;
  report << "Peso_medio_edad" << endl;
  report << Wmed*trans(Prob_talla) << endl;
- report << "Acus_cv" << endl;
+ report << "AcuPE_cv" << endl;
  report << sqrt(1/n1*res1) << endl;
  report << "AcuCH_cv" << endl;
  report << sqrt(1/n2*res2) << endl;
-// report << "RPE_cv" << endl;
-// report << sqrt(1/n3*res3) << endl;
  report << "MPH_cv" << endl;
  report << sqrt(1/n4*res4) << endl;
-// ESTIMA nm 
+//ESTIMA nm 
+//
   suma1=0; suma2=0;n1=1;n2=1;n3=1;cuenta1=0;cuenta2=0;cuenta3=0;
 
   for (int i=1;i<=ntime;i++){ //
@@ -1165,8 +1111,10 @@ REPORT_SECTION
       suma2=norm2(pobs_cru(i)-ppred_cru(i));
       n3=n3*suma1/suma2;
       cuenta3+=1;
-   }}
-// FIN nm
+   }
+  }
+//
+//FIN nm
  report << "Tama_post_flo_Chi" << endl;
  report << pow(n1,1/cuenta1) << endl;
  report << "Tama_post_flo_Per" << endl;
@@ -1177,27 +1125,30 @@ REPORT_SECTION
  report << exp(log_alfa) << endl;
  report << "beta_edad" << endl;
  report << exp(log_beta) << endl;
-// report << "post_A50fch" << endl;
-// report << exp(log_A50f_ch) << endl;
-// report << "post_A50fpe" << endl;
-// report << exp(log_A50f_pe) << endl;
  report << "post_A50cru" << endl;
  report << exp(log_A50c) << endl;
+//ESTIMA CTP
+//
+//FIN CTP
  report << "PBR" << endl;
  report << pbr << endl;
- report << "time_sim" << endl;
+ report << "nyear_sim" << endl;
  report << ntime_sim << endl;
- report << "RMSsem1" << endl;
- report << RMSsem1 << endl;
- report << "Y1sem1" << endl;
- report << Y1sem1 << endl;
+ report << "nrun_sim" << endl;
+ report << nrun << endl;
  report << "Np" << endl;
  report << Np << endl;
  report << "Nproy" << endl;
- report << Npy(2) << endl;
- report << "prior_log_F" << endl;
- report << log_Fch_prior << endl;
-
+ report << Npy << endl;
+ report << "CTP_proy" << endl;
+ report << CTP << endl;
+ report << "YTP_proy" << endl;
+ report << YTP << endl;
+ report << "SSB_proy" << endl;
+ report << BDpy << endl; 
+ report << "RPR_proy" << endl;
+ report << RPRpy << endl;
+ 
 
 FUNCTION Eval_mcmc
 

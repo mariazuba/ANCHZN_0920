@@ -51,26 +51,19 @@
 3
 #CV_prior_F_(la_prior_es_el_vector_de_F_de_la_ultima_evaluacion_*.pin_si_no_hay_prior_relajar_cv_al_maximo)
 0.9
-#numero_de_PBR
-3
-1e-5	#F=0
-0.86	#F55%SPR0_last_year_#0.94:F_status_quo()
-1.13	#F55%SPR0_mean_history
+#valor_de_PBR_al_RMS
+0.86
 #Semestres_a_simular_en_el_futuro_(ntime_sim)=nrec_proy_(reclutas_proyectados_fila_84)
 4
+#Numero_de_corridas(nrun)
+1000
 #CBA_para_un_semestre(1)_o_para_un_year(2)_(sem_year==)
 2
 #los_siguientes_2_semestres_a_proyectar_para_la_CBA_(sem1_y_sem2):5_6_opcion_recluta_estable_(3_years_mas)
 3	4
-#Opcion_rampa_(si=0)
-1
-#RPRmsy:
-0.55
 #Escenario_de_reclutamiento_(proporcion_de_Ro; Estados de la naturaleza)
 1.0
 #0.62
-#Opcion_estima_(1)_o_evalua_(0)_dado_un_vector_de_parametros_multFO
-1
 #No_bloques_qmph_(primero_es_year_de_partida)
 3
 1986	1997	2007
