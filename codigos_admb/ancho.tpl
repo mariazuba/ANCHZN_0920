@@ -851,11 +851,11 @@ FUNCTION Eval_CTP
  for(int s=1;s<=ndos;s++){rdos(s)=Reclutas(dos(s));}
  mea2=mean(rdos);std2=std_dev(rdos);min2=min(rdos);max2=max(rdos);
 // cout << "std1: " << std1 << endl;exit(1);
- for(int i=1;i<=ntime_sim;i++){
-  for(int j=1;j<=ntallas,j++){
+ //for(int i=1;i<=ntime_sim;i++){
+//  for(int j=1;j<=ntallas,j++){
 
-  }
- }
+ // }
+ //}
 
 
  int j=1;
