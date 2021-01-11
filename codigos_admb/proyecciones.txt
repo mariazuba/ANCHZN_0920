@@ -1,0 +1,15 @@
+En el .tpl
+
+1. En la línea 153 inicializa el número de reclutamientos futuros por semestre.
+2. En la línea 145 y 146 inicializa vectores que contienen los índices de los reclutamientos ocurridos
+   en el primer y segundo semestre por separado.
+
+En el .ctl
+
+1. En la línea 78 se ingresa el largo del vector de los índices de los reclutamientos ocupados para la proyección.
+2. Desde la línea 80 hasta la 85 (#comanetada#) están los índices de los diferentes esceanrios de reclutamientos,
+   usados en la proyección, para el primer y segundo semestre por separado. Ej:
+     reclu_prom_1sem:=índices de los reclutamientos promedios para el primer semestre.
+     reclu_prom_2sem:=índices de los reclutamientos promedios para el segundo semestre.
+3. En la línea 86 son los índices para el escenario de reclutamientos positivos del primer semestre.
+4. En la línea 87 son los índices para el escenario de reclutamientos positivos del segundo semestre.  

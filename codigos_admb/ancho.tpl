@@ -1,4 +1,4 @@
-//Codigo Modelo de Evaluacion Anchoveta 2020 version 1
+//Codigo Modelo de Evaluacion Anchoveta Ene-2021 version 01
 //Autor del codigo por Fernando Espindola
 GLOBALS_SECTION
  #include <admodel.h>
@@ -127,6 +127,7 @@ DATA_SECTION
  init_int    sem1
  init_int    sem2
  init_number pR
+ init_number ptrun
 
  number neglog19
 
@@ -139,16 +140,12 @@ DATA_SECTION
  init_number low_Len50_S;   init_number upp_Len50_S;   init_int phase_Len50_S;
  init_number low_LenDiff_S; init_number upp_LenDiff_S; init_int phase_LenDiff_S;
 
- init_vector uno(1,8)
- init_vector dos(1,8)
+ init_int nfut_rec
 
- number nuno
- number ndos
+ init_vector uno(1,nfut_rec)
+ init_vector dos(1,nfut_rec)
 
- !! nuno=double(size_count(uno));
- !! ndos=double(size_count(dos));
-
-// !!cout << msex <<endl;exit(1);
+// !!cout << ndos <<endl;exit(1);
  
  int reporte_mcmc
 
@@ -274,7 +271,6 @@ PARAMETER_SECTION
  vector mu_edad1_time(1,ntime)
  vector delta_time(1,ntime)
  4darray MatricesConv(1,5,1,ntime,1,nedades,1,ntallas)
- matrix ClavePro(1,nedades,1,ntallas)
  matrix Nv(1,ntime,1,nedades)
  matrix NMDv(1,ntime,1,nedades)
  matrix NPt(1,ntime,1,ntallas)
@@ -337,8 +333,8 @@ PARAMETER_SECTION
  matrix BDpy(1,nrun,1,ntime_sim)
  matrix RPRpy(1,nrun,1,ntime_sim)
  matrix YTP(1,nrun,1,ntime_sim)
- vector runo(1,nuno)
- vector rdos(1,ndos)
+ vector runo(1,nfut_rec)
+ vector rdos(1,nfut_rec)
  number mea1
  number std1
  number min1
@@ -839,24 +835,20 @@ FUNCTION Eval_funcion_objetivo
    cont=cont+1;
   }
 
- }
- F_fin=0.5*(Ftot_ref(ntime-1)+Ftot_ref(ntime));
+  F_fin=0.5*(Ftot_ref(ntime-1)+Ftot_ref(ntime));
 
+ }
 
 
 FUNCTION Eval_CTP
  
- for(int r=1;r<=nuno;r++){runo(r)=Reclutas(uno(r));}
- mea1=mean(runo);std1=std_dev(runo);min1=min(runo);max1=max(runo);
- for(int s=1;s<=ndos;s++){rdos(s)=Reclutas(dos(s));}
- mea2=mean(rdos);std2=std_dev(rdos);min2=min(rdos);max2=max(rdos);
+ for(int r=1;r<=nfut_rec;r++){runo(r)=Reclutas(uno(r));}
+ mea1=mean(runo);std1=std_dev(runo);
+ min1=min(runo)*(1+ptrun);max1=max(runo)*(1-ptrun);
+ for(int s=1;s<=nfut_rec;s++){rdos(s)=Reclutas(dos(s));}
+ mea2=mean(rdos);std2=std_dev(rdos);
+ min2=min(rdos)*(1+ptrun);max2=max(rdos)*(1-ptrun);
 // cout << "std1: " << std1 << endl;exit(1);
- //for(int i=1;i<=ntime_sim;i++){
-//  for(int j=1;j<=ntallas,j++){
-
- // }
- //}
-
 
  int j=1;
  while(j<=nrun){
@@ -880,9 +872,9 @@ FUNCTION Eval_CTP
      Fpbr=(Ftot(ntime)/max(Ftot(ntime)))*pbr;
      Zpbr=Fpbr+M;
      Sp=exp(-1.*Zpbr);
-     NMDpy(j)(i)(1,ntallas)=elem_prod(Npy(j)(i),mfexp(-dt(4)*Zpbr))*MatricesConv(1,ntime);//Prob_talla;
+     NMDpy(j)(i)=elem_prod(Npy(j)(i),mfexp(-dt(4)*Zpbr))*Prob_talla;
      BDpy(j)(i)=sum(elem_prod(elem_prod(NMDpy(j)(i),msex),Wmed(ntime)));
-     CTP(j)(i)(1,ntallas)=elem_prod(elem_div(Fpbr,Zpbr),elem_prod(Npy(j)(i),(1-Spbr)))*MatricesConv(1,ntime);//*Prob_talla;
+     CTP(j)(i)=elem_prod(elem_div(Fpbr,Zpbr),elem_prod(Npy(j)(i),(1-Spbr)))*Prob_talla;
      YTP(j)(i)=sum(elem_prod(CTP(j)(i),Wmed(ntime)));
      RPRpy(j)(i)=BDpy(j)(i)/SSBo;
    }

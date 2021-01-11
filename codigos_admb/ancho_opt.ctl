@@ -61,9 +61,10 @@
 2
 #los_siguientes_2_semestres_a_proyectar_para_la_CBA_(sem1_y_sem2):5_6_opcion_recluta_estable_(3_years_mas)
 3	4
-#Escenario_de_reclutamiento_(proporcion_de_Ro; Estados de la naturaleza)
+#Ponderador_de_reclutamiento_(proporcion_de_Ro:_Estados_de_la_naturaleza)
 1.0
-#0.62
+#Pondera_distribucion_aleatoria_truncada_de_los_reclutamientos
+0.25
 #No_bloques_qmph_(primero_es_year_de_partida)
 3
 1986	1997	2007
@@ -73,7 +74,9 @@
 #en log init_number low_Len50_S;   init_number upp_Len50_S;   init_int phase_Len50_S;
 -2	2.5	1
 -10.0	5	1
-#Opcion_reclutamientos_futuros_estimados
+#numero_de_reclutas_futuros
+8
+#Escenarios_de_reclutamientos_futuros_estimados
 #Opt_reclu_prom_1sem(29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65)
 #Opt_reclu_prom_2sem(30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66)
 #Opt_reclu_posi_1sem(33,39,47,53,55,57,59,61)
